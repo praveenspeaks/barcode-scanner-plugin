@@ -1,0 +1,12 @@
+{
+  "name": "barcode-scanner-plugin",
+  "version": "1.0.0",
+  "description": "JS SDK for BarcodeScanner API — QR codes, barcodes, DataMatrix and more",
+  "main": "src/scanner.js",
+  "module": "src/scanner.js",
+  "scripts": {
+    "build": "npx esbuild src/scanner.js --bundle --minify --outfile=dist/barcode-scanner.min.js --format=iife --global-name=BarcodeScannerPlugin"
+  },
+  "keywords": ["barcode", "qrcode", "scanner", "plugin"],
+  "license": "MIT"
+}

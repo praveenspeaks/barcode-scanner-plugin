@@ -1,0 +1,6 @@
+@BarcodeScanner.Api_HostAddress = http://localhost:5107
+
+GET {{BarcodeScanner.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

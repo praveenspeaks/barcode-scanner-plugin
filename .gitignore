@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+
+# .NET
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+.nuget/
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# Claude Code internal
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# ONNX models (large binary files — add manually)
+*.onnx
+*.pt

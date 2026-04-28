@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="BarcodeScanner.Api/BarcodeScanner.Api.csproj" />
+  <Project Path="BarcodeScanner.Core/BarcodeScanner.Core.csproj" />
+</Solution>
