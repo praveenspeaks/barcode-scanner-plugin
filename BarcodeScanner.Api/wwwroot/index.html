@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarcodeScanner Plugin — Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e8e8e8; min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 24px 32px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; color: #7c9ef8; }
+    header p  { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+    .container { max-width: 900px; margin: 40px auto; padding: 0 24px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 28px; }
+    .tab-btn {
+      padding: 10px 22px; border: 1px solid #333; border-radius: 8px;
+      background: transparent; color: #aaa; cursor: pointer; font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: #7c9ef8; border-color: #7c9ef8; color: #fff; font-weight: 600; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .card {
+      background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px;
+      padding: 28px; margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; color: #c0c0c0; margin-bottom: 16px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #3a3a5a; border-radius: 10px; padding: 48px 24px;
+      text-align: center; cursor: pointer; transition: border-color 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.dragging { border-color: #7c9ef8; }
+    .drop-zone input[type=file] { display: none; }
+    .drop-zone p { color: #666; font-size: 0.9rem; margin-top: 8px; }
+    .drop-icon { font-size: 2.5rem; }
+
+    /* Preview */
+    #preview-img {
+      max-width: 100%; max-height: 320px; border-radius: 8px;
+      display: none; margin-top: 16px; border: 1px solid #333;
+    }
+
+    /* Camera */
+    .camera-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; }
+    #camera-video { width: 100%; max-height: 360px; object-fit: cover; display: block; }
+    #camera-canvas { display: none; }
+    .camera-overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .scan-frame {
+      width: 220px; height: 220px;
+      border: 3px solid #7c9ef8;
+      border-radius: 16px;
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.4);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 8px; border: none;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: #7c9ef8; color: #fff; }
+    .btn-primary:hover { background: #6b8de7; }
+    .btn-danger  { background: #e74c3c; color: #fff; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-secondary { background: #2a2a3a; color: #ccc; border: 1px solid #444; }
+    .btn-secondary:hover { background: #333; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+
+    /* Results */
+    #results-panel {
+      background: #111; border: 1px solid #2a2a2a; border-radius: 10px;
+      padding: 20px; min-height: 80px;
+    }
+    .result-empty { color: #555; font-size: 0.85rem; text-align: center; padding: 20px 0; }
+    .barcode-card {
+      background: #1e2a1e; border: 1px solid #2a4a2a; border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 10px;
+    }
+    .barcode-card .format { font-size: 0.75rem; color: #6abf69; font-weight: 700; letter-spacing: 0.5px; }
+    .barcode-card .value  { font-size: 1rem; font-family: monospace; color: #e8e8e8; margin-top: 4px; word-break: break-all; }
+    .barcode-card .bbox   { font-size: 0.75rem; color: #666; margin-top: 4px; }
+
+    .meta { display: flex; gap: 16px; margin-bottom: 14px; font-size: 0.8rem; color: #777; }
+    .meta span b { color: #aaa; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+    }
+    .badge-ok      { background: #1a3a1a; color: #6abf69; }
+    .badge-fail    { background: #3a1a1a; color: #e57373; }
+    .badge-loading { background: #1a2a3a; color: #7c9ef8; }
+
+    /* API URL input */
+    .api-row { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; }
+    .api-row input {
+      flex: 1; padding: 10px 14px; background: #1a1a2a; border: 1px solid #333;
+      border-radius: 8px; color: #e8e8e8; font-size: 0.9rem;
+    }
+    .api-row input:focus { outline: none; border-color: #7c9ef8; }
+
+    .spinner {
+      width: 16px; height: 16px; border: 2px solid #333;
+      border-top-color: #7c9ef8; border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>BarcodeScanner Plugin</h1>
+  <p>QR Code &bull; Barcode &bull; DataMatrix &bull; Aztec &bull; PDF417 &mdash; and more</p>
+</header>
+
+<div class="container">
+
+  <!-- API URL -->
+  <div class="api-row">
+    <input id="api-url" type="text" placeholder="API URL" />
+    <button class="btn btn-secondary" onclick="checkHealth()">Check API</button>
+    <span id="health-badge"></span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('upload', this)">Upload Image</button>
+    <button class="tab-btn" onclick="switchTab('camera', this)">Live Camera</button>
+  </div>
+
+  <!-- Upload Tab -->
+  <div id="tab-upload" class="tab-panel active">
+    <div class="card">
+      <h2>Scan from image</h2>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" accept="image/*" onchange="onFileSelected(event)" />
+        <div class="drop-icon">&#128247;</div>
+        <p>Click to choose an image or drag &amp; drop here</p>
+        <p>JPEG, PNG, BMP, WebP supported &mdash; max 20 MB</p>
+      </div>
+      <img id="preview-img" alt="Preview" />
+      <div class="btn-row">
+        <button class="btn btn-primary" id="scan-btn" onclick="scanUpload()" disabled>Scan</button>
+        <button class="btn btn-secondary" onclick="clearUpload()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Camera Tab -->
+  <div id="tab-camera" class="tab-panel">
+    <div class="card">
+      <h2>Live camera scan</h2>
+      <div class="camera-wrap">
+        <video id="camera-video" autoplay muted playsinline></video>
+        <canvas id="camera-canvas"></canvas>
+        <div class="camera-overlay"><div class="scan-frame"></div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="start-btn" onclick="startCamera()">Start Camera</button>
+        <button class="btn btn-danger"  id="stop-btn"  onclick="stopCamera()" disabled>Stop</button>
+        <button class="btn btn-secondary" id="capture-btn" onclick="captureFrame()" disabled>Capture Frame</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <h2>Results</h2>
+    <div id="results-panel">
+      <p class="result-empty">No scan performed yet.</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="/scanner.js"></script>
+<script>
+  // Auto-detect API URL from current page origin so it works on any device
+  document.getElementById('api-url').value = window.location.origin;
+
+  let scanner = null;
+  let selectedFile = null;
+  let cameraRunning = false;
+
+  function getScanner() {
+    const url = document.getElementById('api-url').value.trim();
+    scanner = new BarcodeScannerPlugin({
+      apiUrl: url,
+      videoElementId: 'camera-video',
+      canvasElementId: 'camera-canvas',
+      scanInterval: 600,
+      onResult: (result) => renderResults(result),
+      onError: (err) => showError(err.message)
+    });
+    return scanner;
+  }
+
+  async function checkHealth() {
+    const badge = document.getElementById('health-badge');
+    badge.innerHTML = '<span class="status-badge badge-loading"><div class="spinner"></div> Checking...</span>';
+    try {
+      const url = document.getElementById('api-url').value.trim();
+      const res = await BarcodeScannerPlugin.checkHealth(url);
+      badge.innerHTML = `<span class="status-badge badge-ok">&#10003; API OK &mdash; v${res.version}</span>`;
+    } catch {
+      badge.innerHTML = '<span class="status-badge badge-fail">&#10007; API Unreachable</span>';
+    }
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (cameraRunning) stopCamera();
+  }
+
+  // ─── Upload ────────────────────────────────────────────────────────────────
+
+  function onFileSelected(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    selectedFile = file;
+    const preview = document.getElementById('preview-img');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    document.getElementById('scan-btn').disabled = false;
+    document.getElementById('results-panel').innerHTML = '<p class="result-empty">Click Scan to process this image.</p>';
+  }
+
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+    const file = e.dataTransfer.files[0];
+    if (file) { selectedFile = file; document.getElementById('file-input').files = e.dataTransfer.files; onFileSelected({ target: { files: [file] } }); }
+  });
+
+  async function scanUpload() {
+    if (!selectedFile) return;
+    showLoading();
+    try {
+      const result = await getScanner().scanFile(selectedFile);
+      renderResults(result);
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function clearUpload() {
+    selectedFile = null;
+    document.getElementById('file-input').value = '';
+    const preview = document.getElementById('preview-img');
+    preview.src = '';
+    preview.style.display = 'none';
+    document.getElementById('scan-btn').disabled = true;
+    document.getElementById('results-panel').innerHTML = '<p class="result-empty">No scan performed yet.</p>';
+  }
+
+  // ─── Camera ────────────────────────────────────────────────────────────────
+
+  async function startCamera() {
+    try {
+      cameraRunning = true;
+      document.getElementById('start-btn').disabled = true;
+      document.getElementById('stop-btn').disabled = false;
+      document.getElementById('capture-btn').disabled = false;
+      await getScanner().startCamera('environment');
+    } catch (err) {
+      showError('Camera error: ' + err.message);
+      stopCamera();
+    }
+  }
+
+  function stopCamera() {
+    if (scanner) scanner.stopCamera();
+    cameraRunning = false;
+    document.getElementById('start-btn').disabled = false;
+    document.getElementById('stop-btn').disabled = true;
+    document.getElementById('capture-btn').disabled = true;
+  }
+
+  async function captureFrame() {
+    showLoading();
+    try {
+      const result = await scanner.captureFrame();
+      renderResults(result);
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  // ─── Results rendering ─────────────────────────────────────────────────────
+
+  function renderResults(result) {
+    const panel = document.getElementById('results-panel');
+    if (!result.success || result.barcodes.length === 0) {
+      panel.innerHTML = '<p class="result-empty">No barcodes found in this image.</p>';
+      return;
+    }
+    let html = `<div class="meta">
+      <span><b>Found:</b> ${result.barcodes.length} barcode(s)</span>
+      <span><b>Time:</b> ${result.processingTimeMs}ms</span>
+    </div>`;
+    for (const b of result.barcodes) {
+      const bbox = b.boundingBox
+        ? `x:${b.boundingBox.x} y:${b.boundingBox.y} ${b.boundingBox.width}&times;${b.boundingBox.height}`
+        : '';
+      html += `<div class="barcode-card">
+        <div class="format">${escapeHtml(b.format)}</div>
+        <div class="value">${escapeHtml(b.value)}</div>
+        ${bbox ? `<div class="bbox">${bbox}</div>` : ''}
+      </div>`;
+    }
+    panel.innerHTML = html;
+  }
+
+  function showLoading() {
+    document.getElementById('results-panel').innerHTML =
+      '<div style="display:flex;gap:10px;align-items:center;color:#666;padding:16px 0"><div class="spinner"></div> Scanning...</div>';
+  }
+
+  function showError(msg) {
+    document.getElementById('results-panel').innerHTML =
+      `<p class="result-empty" style="color:#e57373">Error: ${escapeHtml(msg)}</p>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
