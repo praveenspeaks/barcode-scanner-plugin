@@ -1,0 +1,13 @@
+**/.git
+**/.vs
+**/.idea
+**/.vscode
+**/bin
+**/obj
+**/*.user
+**/.claude
+*.md
+demo/
+BarcodeScanner.Js/
+*.onnx
+*.pt
