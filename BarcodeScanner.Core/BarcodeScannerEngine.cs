@@ -2,7 +2,8 @@ using System.Diagnostics;
 using BarcodeScanner.Core.Config;
 using BarcodeScanner.Core.Models;
 using BarcodeScanner.Core.Pipeline;
-using OpenCvSharp;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace BarcodeScanner.Core;
 
@@ -23,30 +24,46 @@ public sealed class BarcodeScannerEngine : IDisposable
 
     public ScanResult ScanFromBytes(byte[] imageBytes)
     {
-        using var mat = Cv2.ImDecode(imageBytes, ImreadModes.Color);
-        if (mat.Empty())
-            return Fail("Could not decode image bytes.");
-        return Scan(mat);
+        try
+        {
+            using var image = Image.Load<Rgb24>(imageBytes);
+            return Scan(image);
+        }
+        catch (Exception ex)
+        {
+            return Fail("Could not decode image: " + ex.Message);
+        }
     }
 
     public ScanResult ScanFromFile(string filePath)
     {
         if (!File.Exists(filePath))
             return Fail($"File not found: {filePath}");
-        using var mat = Cv2.ImRead(filePath, ImreadModes.Color);
-        if (mat.Empty())
-            return Fail("Could not read image file.");
-        return Scan(mat);
+        try
+        {
+            using var image = Image.Load<Rgb24>(filePath);
+            return Scan(image);
+        }
+        catch (Exception ex)
+        {
+            return Fail("Could not read image file: " + ex.Message);
+        }
     }
 
     public ScanResult ScanFromStream(Stream stream)
     {
-        using var ms = new MemoryStream();
-        stream.CopyTo(ms);
-        return ScanFromBytes(ms.ToArray());
+        try
+        {
+            using var image = Image.Load<Rgb24>(stream);
+            return Scan(image);
+        }
+        catch (Exception ex)
+        {
+            return Fail("Could not decode image stream: " + ex.Message);
+        }
     }
 
-    private ScanResult Scan(Mat image)
+    private ScanResult Scan(Image<Rgb24> image)
     {
         var sw = Stopwatch.StartNew();
         var found = new List<BarcodeItem>();
@@ -54,34 +71,34 @@ public sealed class BarcodeScannerEngine : IDisposable
 
         try
         {
-            var imagesToTry = _options.EnablePreprocessing
+            var variants = _options.EnablePreprocessing
                 ? _preprocessor.Process(image)
-                : [image];
+                : [image.Clone()];
 
             var regions = _options.EnableMlDetection
                 ? _detector.Detect(image)
                 : [new BoundingBox { X = 0, Y = 0, Width = image.Width, Height = image.Height }];
 
-            foreach (var variant in imagesToTry)
+            foreach (var variant in variants)
             {
-                foreach (var region in regions)
+                using (variant)
                 {
-                    var items = _decoder.Decode(variant, region);
-                    foreach (var item in items)
+                    foreach (var region in regions)
                     {
-                        if (seenValues.Add(item.Value))
+                        foreach (var item in _decoder.Decode(variant, region))
                         {
-                            found.Add(item);
-                            if (found.Count >= _options.MaxResults)
-                                goto Done;
+                            if (seenValues.Add(item.Value))
+                            {
+                                found.Add(item);
+                                if (found.Count >= _options.MaxResults)
+                                    goto Done;
+                            }
                         }
                     }
                 }
             }
 
-            Done:
-            foreach (var variant in imagesToTry)
-                variant.Dispose();
+            Done:;
         }
         catch (Exception ex)
         {
