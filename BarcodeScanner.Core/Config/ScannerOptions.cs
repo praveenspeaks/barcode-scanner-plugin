@@ -4,7 +4,7 @@ public class ScannerOptions
 {
     public bool EnablePreprocessing { get; set; } = true;
     public bool EnableMlDetection { get; set; } = true;
-    public int MaxResults { get; set; } = 10;
+    public int MaxResults { get; set; } = 50;
     public string? ModelPath { get; set; }
     public PreprocessingOptions Preprocessing { get; set; } = new();
 }

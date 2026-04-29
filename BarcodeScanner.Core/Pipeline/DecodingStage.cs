@@ -10,58 +10,65 @@ namespace BarcodeScanner.Core.Pipeline;
 
 public class DecodingStage
 {
-    private static readonly IDictionary<DecodeHintType, object> Hints =
-        new Dictionary<DecodeHintType, object>
-        {
-            [DecodeHintType.TRY_HARDER] = true,
-            [DecodeHintType.ALSO_INVERTED] = true,
-            [DecodeHintType.POSSIBLE_FORMATS] = new List<BarcodeFormat>
-            {
-                BarcodeFormat.QR_CODE,
-                BarcodeFormat.DATA_MATRIX,
-                BarcodeFormat.AZTEC,
-                BarcodeFormat.PDF_417,
-                BarcodeFormat.CODE_128,
-                BarcodeFormat.CODE_39,
-                BarcodeFormat.CODE_93,
-                BarcodeFormat.EAN_13,
-                BarcodeFormat.EAN_8,
-                BarcodeFormat.UPC_A,
-                BarcodeFormat.UPC_E,
-                BarcodeFormat.ITF,
-                BarcodeFormat.CODABAR,
-                BarcodeFormat.RSS_14,
-                BarcodeFormat.RSS_EXPANDED,
-            }
-        };
-
-    private readonly MultiFormatReader _formatReader = new();
+    private static readonly List<BarcodeFormat> AllFormats =
+    [
+        BarcodeFormat.QR_CODE,
+        BarcodeFormat.DATA_MATRIX,
+        BarcodeFormat.AZTEC,
+        BarcodeFormat.PDF_417,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.CODE_93,
+        BarcodeFormat.EAN_13,
+        BarcodeFormat.EAN_8,
+        BarcodeFormat.UPC_A,
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.ITF,
+        BarcodeFormat.CODABAR,
+        BarcodeFormat.RSS_14,
+        BarcodeFormat.RSS_EXPANDED,
+    ];
 
     public List<BarcodeItem> Decode(Image<Rgb24> image, BoundingBox region)
     {
-        var results = new List<BarcodeItem>();
+        using var roi = CropRegion(image, region);
+        var found = new List<BarcodeItem>();
+        var seen  = new HashSet<string>();
 
-        foreach (var variant in GetRotationVariants(image, region))
-        {
-            using (variant)
-            {
-                foreach (var item in DecodeOnce(variant, region))
-                    if (results.All(r => r.Value != item.Value))
-                        results.Add(item);
-            }
-        }
+        // Try GlobalHistogramBinarizer — best for printed documents, uniform lighting
+        foreach (var item in DecodeWithBinarizer(roi, useGlobal: true, region))
+            if (seen.Add(item.Value)) found.Add(item);
 
-        return results;
+        // Try HybridBinarizer — best for photos with uneven lighting
+        foreach (var item in DecodeWithBinarizer(roi, useGlobal: false, region))
+            if (seen.Add(item.Value)) found.Add(item);
+
+        return found;
     }
 
-    private List<BarcodeItem> DecodeOnce(Image<Rgb24> img, BoundingBox region)
+    private static List<BarcodeItem> DecodeWithBinarizer(
+        Image<Rgb24> img, bool useGlobal, BoundingBox region)
     {
         var luminance = ToLuminanceSource(img);
-        var bitmap = new BinaryBitmap(new HybridBinarizer(luminance));
-        var multiReader = new GenericMultipleBarcodeReader(_formatReader);
+        Binarizer binarizer = useGlobal
+            ? new GlobalHistogramBinarizer(luminance)
+            : new HybridBinarizer(luminance);
+        var bitmap = new BinaryBitmap(binarizer);
+
+        // Create fresh reader per call — MultiFormatReader is NOT thread-safe
+        // and retains internal state that causes missed detections when reused
+        var reader  = new MultiFormatReader();
+        var multi   = new GenericMultipleBarcodeReader(reader);
+
+        var hints = new Dictionary<DecodeHintType, object>
+        {
+            [DecodeHintType.TRY_HARDER]       = true,
+            [DecodeHintType.ALSO_INVERTED]     = true,
+            [DecodeHintType.POSSIBLE_FORMATS]  = AllFormats,
+        };
 
         Result[]? raw;
-        try { raw = multiReader.decodeMultiple(bitmap, Hints); }
+        try   { raw = multi.decodeMultiple(bitmap, hints); }
         catch { raw = null; }
 
         if (raw is null || raw.Length == 0)
@@ -71,10 +78,10 @@ public class DecodingStage
             .Where(r => r?.Text is not null)
             .Select(r => new BarcodeItem
             {
-                Value = r.Text,
-                Format = r.BarcodeFormat.ToString(),
+                Value       = r.Text,
+                Format      = r.BarcodeFormat.ToString(),
                 BoundingBox = ToAbsoluteBoundingBox(r.ResultPoints, region),
-                Confidence = 1.0f
+                Confidence  = 1.0f
             })
             .ToList();
     }
@@ -100,40 +107,23 @@ public class DecodingStage
             RGBLuminanceSource.BitmapFormat.RGB24);
     }
 
-    private static IEnumerable<Image<Rgb24>> GetRotationVariants(Image<Rgb24> src, BoundingBox region)
-    {
-        using var roi = CropRegion(src, region);
-        yield return roi.Clone();
-
-        var cw = roi.Clone(ctx => ctx.Rotate(RotateMode.Rotate90));
-        yield return cw;
-
-        var ccw = roi.Clone(ctx => ctx.Rotate(RotateMode.Rotate270));
-        yield return ccw;
-    }
-
     private static Image<Rgb24> CropRegion(Image<Rgb24> src, BoundingBox box)
     {
         int x = Math.Max(0, box.X);
         int y = Math.Max(0, box.Y);
-        int w = Math.Min(box.Width, src.Width - x);
+        int w = Math.Min(box.Width,  src.Width  - x);
         int h = Math.Min(box.Height, src.Height - y);
-
-        if (w <= 0 || h <= 0)
-            return src.Clone();
-
+        if (w <= 0 || h <= 0) return src.Clone();
         return src.Clone(ctx => ctx.Crop(new Rectangle(x, y, w, h)));
     }
 
     private static BoundingBox? ToAbsoluteBoundingBox(ResultPoint[]? points, BoundingBox region)
     {
         if (points is null || points.Length == 0) return null;
-
         float minX = points.Min(p => p.X) + region.X;
         float minY = points.Min(p => p.Y) + region.Y;
         float maxX = points.Max(p => p.X) + region.X;
         float maxY = points.Max(p => p.Y) + region.Y;
-
         return new BoundingBox
         {
             X = (int)minX, Y = (int)minY,
