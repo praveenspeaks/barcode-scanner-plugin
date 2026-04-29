@@ -10,8 +10,7 @@
 
     header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      padding: 24px 32px;
-      border-bottom: 1px solid #2a2a4a;
+      padding: 24px 32px; border-bottom: 1px solid #2a2a4a;
     }
     header h1 { font-size: 1.6rem; font-weight: 700; color: #7c9ef8; }
     header p  { font-size: 0.85rem; color: #888; margin-top: 4px; }
@@ -21,11 +20,9 @@
     .tabs { display: flex; gap: 8px; margin-bottom: 28px; }
     .tab-btn {
       padding: 10px 22px; border: 1px solid #333; border-radius: 8px;
-      background: transparent; color: #aaa; cursor: pointer; font-size: 0.9rem;
-      transition: all 0.2s;
+      background: transparent; color: #aaa; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
     }
     .tab-btn.active { background: #7c9ef8; border-color: #7c9ef8; color: #fff; font-weight: 600; }
-
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
@@ -44,26 +41,62 @@
     .drop-zone input[type=file] { display: none; }
     .drop-zone p { color: #666; font-size: 0.9rem; margin-top: 8px; }
     .drop-icon { font-size: 2.5rem; }
-
-    /* Preview */
     #preview-img {
       max-width: 100%; max-height: 320px; border-radius: 8px;
       display: none; margin-top: 16px; border: 1px solid #333;
     }
 
     /* Camera */
-    .camera-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; }
-    #camera-video { width: 100%; max-height: 360px; object-fit: cover; display: block; }
+    .camera-wrap { position: relative; background: #000; border-radius: 10px; overflow: hidden; min-height: 200px; }
+    #camera-video { width: 100%; max-height: 400px; object-fit: cover; display: block; }
     #camera-canvas { display: none; }
+
+    /* Scan frame overlay */
     .camera-overlay {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      position: absolute; inset: 0; display: flex;
+      flex-direction: column; align-items: center; justify-content: center;
       pointer-events: none;
     }
     .scan-frame {
-      width: 220px; height: 220px;
-      border: 3px solid #7c9ef8;
-      border-radius: 16px;
-      box-shadow: 0 0 0 4000px rgba(0,0,0,0.4);
+      width: 220px; height: 220px; border-radius: 16px;
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.45);
+      position: relative;
+    }
+    /* Animated corner brackets */
+    .scan-frame::before, .scan-frame::after,
+    .scan-frame .corner-br, .scan-frame .corner-bl {
+      content: ''; position: absolute; width: 28px; height: 28px;
+      border-color: #7c9ef8; border-style: solid;
+    }
+    .scan-frame::before  { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 10px 0 0 0; }
+    .scan-frame::after   { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 10px 0 0; }
+    .scan-frame .corner-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 10px 0; }
+    .scan-frame .corner-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 10px; }
+
+    /* Laser scan line */
+    .scan-line {
+      position: absolute; left: 4px; right: 4px; height: 2px;
+      background: linear-gradient(90deg, transparent, #7c9ef8, transparent);
+      top: 50%; animation: scan-laser 2s ease-in-out infinite;
+    }
+    @keyframes scan-laser {
+      0%, 100% { top: 10%; opacity: 0.4; }
+      50%       { top: 88%; opacity: 1; }
+    }
+
+    /* Live scan status bar */
+    #scan-status {
+      margin-top: 12px; text-align: center; font-size: 0.82rem;
+      color: #666; min-height: 22px; transition: color 0.3s;
+    }
+    #scan-status.active  { color: #7c9ef8; }
+    #scan-status.found   { color: #6abf69; font-weight: 600; }
+
+    /* Found flash on camera wrap */
+    .camera-wrap.flash { animation: green-flash 0.4s ease-out; }
+    @keyframes green-flash {
+      0%   { box-shadow: 0 0 0 0 rgba(106, 191, 105, 0.8); }
+      100% { box-shadow: 0 0 0 20px rgba(106, 191, 105, 0); }
     }
 
     /* Buttons */
@@ -72,14 +105,13 @@
       padding: 10px 20px; border-radius: 8px; border: none;
       font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
     }
-    .btn-primary { background: #7c9ef8; color: #fff; }
-    .btn-primary:hover { background: #6b8de7; }
-    .btn-danger  { background: #e74c3c; color: #fff; }
-    .btn-danger:hover { background: #c0392b; }
+    .btn-primary   { background: #7c9ef8; color: #fff; }
+    .btn-primary:hover  { background: #6b8de7; }
+    .btn-danger    { background: #e74c3c; color: #fff; }
+    .btn-danger:hover   { background: #c0392b; }
     .btn-secondary { background: #2a2a3a; color: #ccc; border: 1px solid #444; }
     .btn-secondary:hover { background: #333; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
+    .btn:disabled  { opacity: 0.45; cursor: not-allowed; }
     .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 
     /* Results */
@@ -90,16 +122,21 @@
     .result-empty { color: #555; font-size: 0.85rem; text-align: center; padding: 20px 0; }
     .barcode-card {
       background: #1e2a1e; border: 1px solid #2a4a2a; border-radius: 8px;
-      padding: 14px 16px; margin-bottom: 10px;
+      padding: 14px 16px; margin-bottom: 10px; position: relative;
     }
     .barcode-card .format { font-size: 0.75rem; color: #6abf69; font-weight: 700; letter-spacing: 0.5px; }
     .barcode-card .value  { font-size: 1rem; font-family: monospace; color: #e8e8e8; margin-top: 4px; word-break: break-all; }
-    .barcode-card .bbox   { font-size: 0.75rem; color: #666; margin-top: 4px; }
+    .barcode-card .bbox   { font-size: 0.75rem; color: #555; margin-top: 4px; }
+    .copy-btn {
+      position: absolute; top: 10px; right: 10px; padding: 4px 10px;
+      font-size: 0.75rem; background: #2a3a4a; border: 1px solid #3a5a6a;
+      border-radius: 6px; color: #aaa; cursor: pointer;
+    }
+    .copy-btn:hover { background: #3a4a5a; color: #fff; }
 
     .meta { display: flex; gap: 16px; margin-bottom: 14px; font-size: 0.8rem; color: #777; }
     .meta span b { color: #aaa; }
 
-    /* Status badge */
     .status-badge {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
@@ -108,7 +145,6 @@
     .badge-fail    { background: #3a1a1a; color: #e57373; }
     .badge-loading { background: #1a2a3a; color: #7c9ef8; }
 
-    /* API URL input */
     .api-row { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; }
     .api-row input {
       flex: 1; padding: 10px 14px; background: #1a1a2a; border: 1px solid #333;
@@ -167,15 +203,22 @@
   <div id="tab-camera" class="tab-panel">
     <div class="card">
       <h2>Live camera scan</h2>
-      <div class="camera-wrap">
+      <div class="camera-wrap" id="camera-wrap">
         <video id="camera-video" autoplay muted playsinline></video>
         <canvas id="camera-canvas"></canvas>
-        <div class="camera-overlay"><div class="scan-frame"></div></div>
+        <div class="camera-overlay">
+          <div class="scan-frame">
+            <div class="corner-br"></div>
+            <div class="corner-bl"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
       </div>
+      <div id="scan-status">Press Start Camera to begin.</div>
       <div class="btn-row">
-        <button class="btn btn-primary" id="start-btn" onclick="startCamera()">Start Camera</button>
-        <button class="btn btn-danger"  id="stop-btn"  onclick="stopCamera()" disabled>Stop</button>
-        <button class="btn btn-secondary" id="capture-btn" onclick="captureFrame()" disabled>Capture Frame</button>
+        <button class="btn btn-primary"   id="start-btn"   onclick="startCamera()">Start Camera</button>
+        <button class="btn btn-danger"    id="stop-btn"    onclick="stopCamera()"    disabled>Stop</button>
+        <button class="btn btn-secondary" id="capture-btn" onclick="captureFrame()"  disabled>Capture Frame</button>
       </div>
     </div>
   </div>
@@ -192,44 +235,89 @@
 
 <script src="/scanner.js"></script>
 <script>
-  // Auto-detect API URL from current page origin so it works on any device
   document.getElementById('api-url').value = window.location.origin;
 
   let scanner = null;
   let selectedFile = null;
   let cameraRunning = false;
+  let frameCount = 0;
 
   function getScanner() {
     const url = document.getElementById('api-url').value.trim();
     scanner = new BarcodeScannerPlugin({
       apiUrl: url,
-      videoElementId: 'camera-video',
+      videoElementId:  'camera-video',
       canvasElementId: 'camera-canvas',
-      scanInterval: 600,
-      onResult: (result) => renderResults(result),
-      onError: (err) => showError(err.message)
+      scanInterval: 700,
+      onResult: (result) => {
+        // Flash the camera wrap green
+        const wrap = document.getElementById('camera-wrap');
+        wrap.classList.remove('flash');
+        void wrap.offsetWidth; // force reflow
+        wrap.classList.add('flash');
+
+        setStatus(`Found: ${result.barcodes[0].value}`, 'found');
+        renderResults(result);
+      },
+      onFrame: (result) => {
+        frameCount++;
+        if (!result || !result.success) {
+          setStatus(`Scanning... (${frameCount} frames checked)`, 'active');
+        }
+      },
+      onError: (err) => {
+        setStatus('Error: ' + err.message, '');
+        showError(err.message);
+      }
     });
     return scanner;
   }
 
-  async function checkHealth() {
-    const badge = document.getElementById('health-badge');
-    badge.innerHTML = '<span class="status-badge badge-loading"><div class="spinner"></div> Checking...</span>';
+  // ─── Camera ────────────────────────────────────────────────────────────────
+
+  async function startCamera() {
+    frameCount = 0;
+    setStatus('Starting camera...', 'active');
+    document.getElementById('start-btn').disabled   = true;
+    document.getElementById('stop-btn').disabled    = false;
+    document.getElementById('capture-btn').disabled = false;
+
     try {
-      const url = document.getElementById('api-url').value.trim();
-      const res = await BarcodeScannerPlugin.checkHealth(url);
-      badge.innerHTML = `<span class="status-badge badge-ok">&#10003; API OK &mdash; v${res.version}</span>`;
-    } catch {
-      badge.innerHTML = '<span class="status-badge badge-fail">&#10007; API Unreachable</span>';
+      cameraRunning = true;
+      await getScanner().startCamera('environment');
+      setStatus('Camera ready — scanning...', 'active');
+    } catch (err) {
+      setStatus('Camera error: ' + err.message, '');
+      showError('Camera error: ' + err.message);
+      stopCamera();
     }
   }
 
-  function switchTab(name, btn) {
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    btn.classList.add('active');
-    if (cameraRunning) stopCamera();
+  function stopCamera() {
+    if (scanner) scanner.stopCamera();
+    cameraRunning = false;
+    document.getElementById('start-btn').disabled   = false;
+    document.getElementById('stop-btn').disabled    = true;
+    document.getElementById('capture-btn').disabled = true;
+    setStatus('Stopped.', '');
+  }
+
+  async function captureFrame() {
+    if (!scanner) return;
+    setStatus('Capturing frame...', 'active');
+    try {
+      const result = await scanner.captureFrame();
+      renderResults(result);
+      setStatus(result.success ? `Found: ${result.barcodes[0].value}` : 'No barcode in this frame.', result.success ? 'found' : '');
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function setStatus(msg, cls) {
+    const el = document.getElementById('scan-status');
+    el.textContent = msg;
+    el.className = cls || '';
   }
 
   // ─── Upload ────────────────────────────────────────────────────────────────
@@ -252,14 +340,16 @@
     e.preventDefault();
     dropZone.classList.remove('dragging');
     const file = e.dataTransfer.files[0];
-    if (file) { selectedFile = file; document.getElementById('file-input').files = e.dataTransfer.files; onFileSelected({ target: { files: [file] } }); }
+    if (file) { selectedFile = file; onFileSelected({ target: { files: [file] } }); }
   });
 
   async function scanUpload() {
     if (!selectedFile) return;
     showLoading();
     try {
-      const result = await getScanner().scanFile(selectedFile);
+      const url = document.getElementById('api-url').value.trim();
+      const s = new BarcodeScannerPlugin({ apiUrl: url });
+      const result = await s.scanFile(selectedFile);
       renderResults(result);
     } catch (err) {
       showError(err.message);
@@ -270,42 +360,32 @@
     selectedFile = null;
     document.getElementById('file-input').value = '';
     const preview = document.getElementById('preview-img');
-    preview.src = '';
-    preview.style.display = 'none';
+    preview.src = ''; preview.style.display = 'none';
     document.getElementById('scan-btn').disabled = true;
     document.getElementById('results-panel').innerHTML = '<p class="result-empty">No scan performed yet.</p>';
   }
 
-  // ─── Camera ────────────────────────────────────────────────────────────────
+  // ─── Tab switching ─────────────────────────────────────────────────────────
 
-  async function startCamera() {
-    try {
-      cameraRunning = true;
-      document.getElementById('start-btn').disabled = true;
-      document.getElementById('stop-btn').disabled = false;
-      document.getElementById('capture-btn').disabled = false;
-      await getScanner().startCamera('environment');
-    } catch (err) {
-      showError('Camera error: ' + err.message);
-      stopCamera();
-    }
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (cameraRunning) stopCamera();
   }
 
-  function stopCamera() {
-    if (scanner) scanner.stopCamera();
-    cameraRunning = false;
-    document.getElementById('start-btn').disabled = false;
-    document.getElementById('stop-btn').disabled = true;
-    document.getElementById('capture-btn').disabled = true;
-  }
+  // ─── Health check ──────────────────────────────────────────────────────────
 
-  async function captureFrame() {
-    showLoading();
+  async function checkHealth() {
+    const badge = document.getElementById('health-badge');
+    badge.innerHTML = '<span class="status-badge badge-loading"><div class="spinner"></div> Checking...</span>';
     try {
-      const result = await scanner.captureFrame();
-      renderResults(result);
-    } catch (err) {
-      showError(err.message);
+      const url = document.getElementById('api-url').value.trim();
+      const res = await BarcodeScannerPlugin.checkHealth(url);
+      badge.innerHTML = `<span class="status-badge badge-ok">&#10003; API OK &mdash; v${res.version}</span>`;
+    } catch {
+      badge.innerHTML = '<span class="status-badge badge-fail">&#10007; API Unreachable</span>';
     }
   }
 
@@ -313,7 +393,7 @@
 
   function renderResults(result) {
     const panel = document.getElementById('results-panel');
-    if (!result.success || result.barcodes.length === 0) {
+    if (!result || !result.success || result.barcodes.length === 0) {
       panel.innerHTML = '<p class="result-empty">No barcodes found in this image.</p>';
       return;
     }
@@ -326,6 +406,7 @@
         ? `x:${b.boundingBox.x} y:${b.boundingBox.y} ${b.boundingBox.width}&times;${b.boundingBox.height}`
         : '';
       html += `<div class="barcode-card">
+        <button class="copy-btn" onclick="copyValue(this, '${escapeHtml(b.value)}')">Copy</button>
         <div class="format">${escapeHtml(b.format)}</div>
         <div class="value">${escapeHtml(b.value)}</div>
         ${bbox ? `<div class="bbox">${bbox}</div>` : ''}
@@ -344,8 +425,16 @@
       `<p class="result-empty" style="color:#e57373">Error: ${escapeHtml(msg)}</p>`;
   }
 
+  function copyValue(btn, value) {
+    navigator.clipboard.writeText(value).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+
   function escapeHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>
